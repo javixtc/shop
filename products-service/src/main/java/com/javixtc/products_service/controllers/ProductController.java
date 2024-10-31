@@ -22,7 +22,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class ProductController {
 
-    private ProductService productService;
+    private final ProductService productService;
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
@@ -35,6 +35,5 @@ public class ProductController {
     public List<ProductResponse> getAllProducts() {
         return productService.getAllProducts();
     }
-    
     
 }
