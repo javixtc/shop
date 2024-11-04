@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.javixtc.orders_service.model.dtos.OrderRequest;
+import com.javixtc.orders_service.model.dtos.OrderResponse;
 import com.javixtc.orders_service.services.OrderService;
 
 import lombok.RequiredArgsConstructor;

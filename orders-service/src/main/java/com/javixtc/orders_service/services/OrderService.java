@@ -1,5 +1,6 @@
 package com.javixtc.orders_service.services;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -7,7 +8,9 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import com.javixtc.orders_service.model.dtos.BaseResponse;
 import com.javixtc.orders_service.model.dtos.OrderItemRequest;
+import com.javixtc.orders_service.model.dtos.OrderItemsResponse;
 import com.javixtc.orders_service.model.dtos.OrderRequest;
+import com.javixtc.orders_service.model.dtos.OrderResponse;
 import com.javixtc.orders_service.model.entities.Order;
 import com.javixtc.orders_service.model.entities.OrderItems;
 import com.javixtc.orders_service.repositories.OrderRepository;
@@ -52,4 +55,21 @@ public class OrderService {
             .order(order)
             .build();
     }
+
+    public List<OrderResponse> getAllOrders() {
+        List<Order> orders = this.orderRepository.findAll();
+
+        return orders.stream().map(this::mapToOrderResponse).toList();
+
+    }
+
+    private OrderResponse mapToOrderResponse(Order order) {
+        return new OrderResponse(order.getId(), order.getOrderNumber()
+                , order.getOrderItems().stream().map(this::mapToOrderItemRequest).toList());
+    }
+
+    private OrderItemsResponse mapToOrderItemRequest(OrderItems orderItems) {
+        return new OrderItemsResponse(orderItems.getId(), orderItems.getSku(), orderItems.getPrice(), orderItems.getQuantity());
+    }
+
 }
