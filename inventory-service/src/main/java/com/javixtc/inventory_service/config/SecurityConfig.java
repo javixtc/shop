@@ -23,17 +23,16 @@ import java.util.stream.Collectors;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(AbstractHttpConfigurer::disable)
-                .authorizeHttpRequests(auth ->
-                        auth.requestMatchers(request ->
-                                        request.getRequestURI().contains("/actuator/inventory")).permitAll()
-                                .anyRequest().authenticated())
-                .oauth2ResourceServer(configure -> configure.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter())));
+public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    http
+        .csrf(AbstractHttpConfigurer::disable)
+        .authorizeHttpRequests(auth ->
+            auth.requestMatchers("/actuator/inventory").permitAll()
+                .anyRequest().authenticated())
+        .oauth2ResourceServer(configure -> configure.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter())));
 
-        return http.build();
-    }
+    return http.build();
+}
 
     private Converter<Jwt, ? extends AbstractAuthenticationToken> jwtAuthConverter() {
         JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
