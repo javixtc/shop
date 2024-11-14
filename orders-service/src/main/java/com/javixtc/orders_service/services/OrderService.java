@@ -3,9 +3,11 @@ package com.javixtc.orders_service.services;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.javixtc.orders_service.events.OrderEvent;
 import com.javixtc.orders_service.model.dtos.BaseResponse;
 import com.javixtc.orders_service.model.dtos.OrderItemRequest;
 import com.javixtc.orders_service.model.dtos.OrderItemsResponse;
@@ -13,7 +15,9 @@ import com.javixtc.orders_service.model.dtos.OrderRequest;
 import com.javixtc.orders_service.model.dtos.OrderResponse;
 import com.javixtc.orders_service.model.entities.Order;
 import com.javixtc.orders_service.model.entities.OrderItems;
+import com.javixtc.orders_service.model.enums.OrderStatus;
 import com.javixtc.orders_service.repositories.OrderRepository;
+import com.javixtc.orders_service.utils.JsonUtils;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,6 +27,7 @@ public class OrderService {
 
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClientBuilder;
+    private final KafkaTemplate<String, String> kafkaTemplate;
 
     public OrderResponse placeOrder(OrderRequest orderRequest) {
 
@@ -41,6 +46,15 @@ public class OrderService {
             order.setOrderItems(orderRequest.getOrderItems().stream().map(orderRequestItem -> mapOrderItemToOrderItem(orderRequestItem, order))
                     .toList());
             var saveOrder = this.orderRepository.save(order);
+            
+
+
+            
+            this.kafkaTemplate.send("order-topic", JsonUtils.toJson(
+                new OrderEvent(saveOrder.getOrderNumber(), saveOrder.getOrderItems().size(), OrderStatus.PLACED)));
+
+
+
             return mapToOrderResponse(saveOrder);
         } else {
             throw new IllegalArgumentException("Product is not in stock, please try again later");
