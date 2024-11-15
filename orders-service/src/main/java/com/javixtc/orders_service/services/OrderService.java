@@ -19,6 +19,8 @@ import com.javixtc.orders_service.model.enums.OrderStatus;
 import com.javixtc.orders_service.repositories.OrderRepository;
 import com.javixtc.orders_service.utils.JsonUtils;
 
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -28,33 +30,42 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClientBuilder;
     private final KafkaTemplate<String, String> kafkaTemplate;
+    private final ObservationRegistry observationRegistry;
 
     public OrderResponse placeOrder(OrderRequest orderRequest) {
 
-        // Check for inventory
-        BaseResponse result = this.webClientBuilder.build()
-            .post()
-            .uri("lb://inventory-service/api/inventory/in-stock")
-            .bodyValue(orderRequest.getOrderItems())
-            .retrieve()
-            .bodyToMono(BaseResponse.class)
-            .block();
+        /**
+         * Starts an observation for the "inventory-service" operation, using the provided ObservationRegistry.
+         * This observation can be used to track and monitor the performance and behavior of the inventory service
+         * interaction within the `placeOrder` method.
+         */
+        Observation inventoryObservation = Observation.createNotStarted("inventory-service", observationRegistry);
+        //Check for inventory
+        return inventoryObservation.observe(() -> {
+            BaseResponse result = this.webClientBuilder.build()
+                .post()
+                .uri("lb://inventory-service/api/inventory/in-stock")
+                .bodyValue(orderRequest.getOrderItems())
+                .retrieve()
+                .bodyToMono(BaseResponse.class)
+                .block();
 
-        if (result != null && !result.hasErrors()){
-            Order order = new Order();
-            order.setOrderNumber(UUID.randomUUID().toString());
-            order.setOrderItems(orderRequest.getOrderItems().stream().map(orderRequestItem -> mapOrderItemToOrderItem(orderRequestItem, order))
-                    .toList());
-            var saveOrder = this.orderRepository.save(order);
-            
-            // Send order event to notification service
-            this.kafkaTemplate.send("orders-topic", JsonUtils.toJson(
-                new OrderEvent(saveOrder.getOrderNumber(), saveOrder.getOrderItems().size(), OrderStatus.PLACED)));
+            if (result != null && !result.hasErrors()){
+                Order order = new Order();
+                order.setOrderNumber(UUID.randomUUID().toString());
+                order.setOrderItems(orderRequest.getOrderItems().stream().map(orderRequestItem -> mapOrderItemToOrderItem(orderRequestItem, order))
+                        .toList());
+                var saveOrder = this.orderRepository.save(order);
+                
+                // Send order event to notification service
+                this.kafkaTemplate.send("orders-topic", JsonUtils.toJson(
+                    new OrderEvent(saveOrder.getOrderNumber(), saveOrder.getOrderItems().size(), OrderStatus.PLACED)));
 
-            return mapToOrderResponse(saveOrder);
-        } else {
-            throw new IllegalArgumentException("Product is not in stock, please try again later");
-        }
+                return mapToOrderResponse(saveOrder);
+            } else {
+                throw new IllegalArgumentException("Product is not in stock, please try again later");
+            }
+        });
     }
 
     private OrderItems mapOrderItemToOrderItem(OrderItemRequest orderItemRequest, Order order) {
